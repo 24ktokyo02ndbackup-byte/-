@@ -1,0 +1,820 @@
+getgenv().library = loadstring(game:HttpGet("https://pastebin.com/raw/U2YcuUDn"))()
+getgenv().flags = library.flags	
+
+local function GetSize()
+    if getgenv().IsMobile then 
+        return UDim2.fromOffset(550, 450)
+    else 
+        return UDim2.fromOffset(550, 650)
+     end
+ end
+
+-- Window
+local window = getgenv().library:window({
+    name = "Zero",
+    size = GetSize(),
+	background_image = ""
+})
+
+-- Tabs
+local Main = window:tab({ name = "Main" })
+local Visuals = window:tab({ name = "Visuals" })
+local Configs = window:tab({ name = "Configs" })
+
+-- ========== MAIN TAB ==========
+
+-- Ragebot Section
+local Rage = Main:section({ name = "Ragebot", side = "left" })
+
+Rage:toggle({
+    name = "Enabled",
+    flag = "rage_enabled",
+    default = getgenv().Zero.Ragebot.Enabled,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Enabled = v
+    end
+})
+Rage:keybind({
+    name = "Ragebot Key",
+    flag = "rage_enabled_bind",
+    default = getgenv().Zero.Ragebot.Keybind,
+    callback = function()
+        getgenv().Zero.Ragebot.Keybind = getgenv().flags["rage_enabled_bind"].key
+end
+})
+
+Rage:toggle({
+    name = "Auto Fire",
+    flag = "rage_autofire",
+    default = getgenv().Zero.Ragebot.Autofire,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Autofire = v
+    end
+})
+
+Rage:dropdown({
+    name = "Hitpart",
+    flag = "rage_hitpart",
+    items = { "Head", "HumanoidRootPart", "UpperTorso" },
+    default = getgenv().Zero.Ragebot.Hitpart,
+    multi = false,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Hitpart = v
+    end
+})
+
+Rage:toggle({
+    name = "Random Hitpart",
+    flag = "rage_random_hitpart",
+    default = getgenv().Zero.Ragebot.RandomHitPart,
+    callback = function(v)
+        getgenv().Zero.Ragebot.RandomHitPart = v
+    end
+})
+
+Rage:toggle({
+    name = "KO Check",
+    flag = "rage_ko",
+    default = getgenv().Zero.Ragebot.Checks.Ko,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Checks.Ko = v
+    end
+})
+
+Rage:toggle({
+    name = "Wall Check",
+    flag = "rage_wall",
+    default = getgenv().Zero.Ragebot.Checks.Wall,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Checks.Wall = v
+    end
+})
+
+Rage:slider({
+    name = "Health Limit",
+    flag = "rage_hp_limit",
+    min = 0,
+    max = 5,
+    default = getgenv().Zero.Ragebot.Checks.Health_limit,
+    interval = 0.1,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Checks.Health_limit = v
+    end
+})
+
+Rage:toggle({
+    name = "Notifications",
+    flag = "rage_notif",
+    default = getgenv().Zero.Ragebot.Others.NotificationsEnabled,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Others.NotificationsEnabled = v
+    end
+})
+
+Rage:toggle({
+    name = "Tracer",
+    flag = "rage_tracer",
+    default = getgenv().Zero.Ragebot.Others.Tracer.Enabled,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Others.Tracer.Enabled = v
+    end
+}):colorpicker({
+    name = "Tracer Color",
+    flag = "rage_tracer_color",
+    color = getgenv().Zero.Ragebot.Others.Tracer.Color,
+    callback = function(c)
+        getgenv().Zero.Ragebot.Others.Tracer.Color = c
+    end
+})
+
+Rage:toggle({
+    name = "Hit Sound",
+    flag = "rage_hitsound",
+    default = getgenv().Zero.Ragebot.Others.HitSound,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Others.HitSound = v
+    end
+})
+
+Rage:dropdown({
+    name = "Sound Type",
+    flag = "rage_sound_type",
+    items = {"neverlose", "coin", "pop", "error", "click", "snipe", "uwu", "retro", "sf"},
+    default = getgenv().Zero.Ragebot.Others.Sound,
+    multi = false,
+    callback = function(v)
+        getgenv().Zero.Ragebot.Others.Sound = v
+    end
+})
+
+-- Silent Aim Section
+local Silent = Main:section({ name = "Silent Aim", side = "right" })
+
+Silent:toggle({
+    name = "Enabled",
+    flag = "silent_enabled",
+    default = getgenv().Zero.Silent.Enabled,
+    callback = function(v)
+        getgenv().Zero.Silent.Enabled = v
+    end
+})
+
+Silent:toggle({
+    name = "Show Fov",
+    flag = "silent_show_fov",
+    default = getgenv().Zero.Silent.FOV.ShowFOV,
+    callback = function(v)
+        getgenv().Zero.Silent.FOV.ShowFOV = v
+    end
+})
+
+Silent:slider({
+    name = "Fov Radius",
+    flag = "silent_fov_radius",
+    min = 50,
+    max = 500,
+    default = getgenv().Zero.Silent.FOV.Radius,
+    interval = 1,
+    callback = function(v)
+        getgenv().Zero.Silent.FOV.Radius = v
+    end
+})
+
+Silent:dropdown({
+    name = "Hitpart",
+    flag = "silent_hitpart",
+    items = { "Head", "HumanoidRootPart", "UpperTorso" },
+    default = getgenv().Zero.Silent.Hitpart,
+    multi = false,
+    callback = function(v)
+        getgenv().Zero.Silent.Hitpart = v
+    end
+})
+
+Silent:dropdown({
+    name = "Air Hitpart",
+    flag = "silent_air_hitpart",
+    items = { "HumanoidRootPart", "LowerTorso" },
+    default = getgenv().Zero.Silent.Airhitpart,
+    multi = false,
+    callback = function(v)
+        getgenv().Zero.Silent.Airhitpart = v
+    end
+})
+
+Silent:toggle({
+    name = "Closest Hitpart",
+    flag = "silent_closest",
+    default = getgenv().Zero.Silent.Closesthitpart,
+    callback = function(v)
+        getgenv().Zero.Silent.Closesthitpart = v
+    end
+})
+
+Silent:toggle({
+    name = "KO Check",
+    flag = "silent_ko",
+    default = getgenv().Zero.Silent.Checks.Ko,
+    callback = function(v)
+        getgenv().Zero.Silent.Checks.Ko = v
+    end
+})
+
+Silent:toggle({
+    name = "Wall Check",
+    flag = "silent_wall",
+    default = getgenv().Zero.Silent.Checks.Wall,
+    callback = function(v)
+        getgenv().Zero.Silent.Checks.Wall = v
+    end
+})
+
+Silent:slider({
+    name = "Health Limit",
+    flag = "silent_hp_limit",
+    min = 0,
+    max = 5,
+    default = getgenv().Zero.Silent.Checks.Health_limit,
+    interval = 0.1,
+    callback = function(v)
+        getgenv().Zero.Silent.Checks.Health_limit = v
+    end
+})
+
+Silent:toggle({
+    name = "Hit Sound",
+    flag = "silent_hitsound",
+    default = getgenv().Zero.Silent.HitSound,
+    callback = function(v)
+        getgenv().Zero.Silent.HitSound = v
+    end
+})
+
+Silent:dropdown({
+    name = "Sound Type",
+    flag = "silent_sound_type",
+    items = {"neverlose", "coin", "pop", "error", "click", "snipe", "uwu", "retro", "sf"},
+    default = getgenv().Zero.Silent.Sound,
+    multi = false,
+    callback = function(v)
+        getgenv().Zero.Silent.Sound = v
+    end
+})
+
+-- Self Section
+local Self = Main:section({ name = "Self", side = "right" })
+
+Self:toggle({
+    name = "CFrame Speed",
+    flag = "cf_enabled",
+    default = getgenv().Zero.Self.CFrameSpeed.Enabled,
+    callback = function(v)
+        getgenv().Zero.Self.CFrameSpeed.Enabled = v
+    end
+})
+Self:keybind({
+    name = "CFrame Keybind",
+    flag = "cf_key",
+    default = getgenv().Zero.Self.CFrameSpeed.Keybind,
+    callback = function()
+        getgenv().Zero.Self.CFrameSpeed.Keybind = getgenv().flags["cf_key"].key
+    end
+})
+
+Self:slider({
+    name = "Speed",
+    flag = "cf_speed",
+    min = 1,
+    max = 10,
+    default = getgenv().Zero.Self.CFrameSpeed.Speed,
+    interval = 1,
+    callback = function(v)
+        getgenv().Zero.Self.CFrameSpeed.Speed = v
+    end
+})
+
+Self:toggle({
+    name = "Void Hide",
+    flag = "void_hide",
+    default = getgenv().Zero.Self.Voidhide.Enabled,
+    callback = function(v)
+        getgenv().Zero.Self.Voidhide.Enabled = v
+    end
+})
+
+Self:keybind({
+    name = "Void Keybind",
+    flag = "void_hide_key",
+    default = getgenv().Zero.Self.Voidhide.Keybind,
+    callback = function()
+        getgenv().Zero.Self.Voidhide.Keybind = getgenv().flags["void_hide_key"].key
+    end
+})
+
+Self:toggle({
+    name = "Visualize Desync",
+    flag = "visualize_desync",
+    default = getgenv().Zero.Self.Voidhide.Visualize_Desync,
+    callback = function(v)
+        getgenv().Zero.Self.Voidhide.Visualize_Desync = v
+        if desync then
+            desync.LocalVisualESP = v
+        end
+    end
+})
+
+-- Follow Target Section
+local Follow = Main:section({ name = "Follow Target", side = "left" })
+
+Follow:toggle({
+    name = "Enabled",
+    flag = "follow_enabled",
+    default = getgenv().Zero.Ragebot.FollowTarget.Enabled,
+    callback = function(v)
+        getgenv().Zero.Ragebot.FollowTarget.Enabled = v
+    end
+})
+
+Follow:slider({
+    name = "Radius",
+    flag = "follow_radius",
+    min = 5,
+    max = 25,
+    default = getgenv().Zero.Ragebot.FollowTarget.Radius,
+    interval = 1,
+    callback = function(v)
+        getgenv().Zero.Ragebot.FollowTarget.Radius = v
+    end
+})
+
+Follow:toggle({
+    name = "Spectate",
+    flag = "follow_spectate",
+    default = getgenv().Zero.Ragebot.FollowTarget.Spectate,
+    callback = function(v)
+        getgenv().Zero.Ragebot.FollowTarget.Spectate = v
+    end
+})
+
+-- ========== OTHERS TAB ==========
+
+
+local OtherSec = Main:section({ name = "Other", side = "right" })
+
+OtherSec:toggle({
+    name = "Auto Stomp",
+    flag = "auto_stomp",
+    default = getgenv().Zero.Otherslol.Autostomp,
+    callback = function(v)
+        getgenv().Zero.Otherslol.Autostomp = v
+    end
+})
+
+OtherSec:toggle({
+    name = "Auto Reload",
+    flag = "auto_reload",
+    default = getgenv().Zero.Otherslol.Autoreload,
+    callback = function(v)
+        getgenv().Zero.Otherslol.Autoreload = v
+    end
+})
+
+OtherSec:toggle({
+    name = "Rapid Fire",
+    flag = "rapid_fire",
+    default = getgenv().Zero.Otherslol.Rapidfire,
+    callback = function(v)
+        getgenv().Zero.Otherslol.Rapidfire = v
+    end
+})
+
+OtherSec:keybind({
+    name = "Get Armor",
+    flag = "armor_key",
+    default = getgenv().Zero.Otherslol.Armorkeybind,
+    callback = function()
+        getgenv().Zero.Otherslol.Armorkeybind = getgenv().flags["armor_key"].key
+    end
+})
+
+local resolvesec = Main:section({ name = "Resolver", side = "left" })
+
+resolvesec:toggle({
+    name = "Resolver",
+    flag = "resolver_enabled",
+    default = getgenv().Zero.Resolver.Enabled,
+    callback = function(v)
+        getgenv().Zero.Resolver.Enabled = v
+    end
+})
+
+resolvesec:dropdown({
+    name = "Resolver Method",
+    flag = "resolver_method",
+    items = {"MoveDirection", "Velocity", "Recalculate"},
+    default = getgenv().Zero.Resolver.Method,
+    multi = false,
+    callback = function(v)
+        getgenv().Zero.Resolver.Method = v
+    end
+})
+
+resolvesec:slider({
+    name = "Confidence",
+    flag = "resolver_confidence",
+    min = 0.1,
+    max = 0.3,
+    default = getgenv().Zero.Resolver.Confidence,
+    interval = 0.001,
+    callback = function(v)
+        getgenv().Zero.Resolver.Confidence = v
+    end
+})
+
+resolvesec:slider({
+    name = "Sensitivity",
+    flag = "resolver_sensitivity",
+    min = 500,
+    max = 2000,
+    default = getgenv().Zero.Resolver.Sensitivity,
+    interval = 50,
+    callback = function(v)
+        getgenv().Zero.Resolver.Sensitivity = v
+    end
+})
+
+local misctab = Main:section({ name = "misc", side = "left" })
+local RunService = game:GetService("RunService")
+local lp = game.Players.LocalPlayer
+
+local attachWeld = nil
+local conn = nil
+local offsetDistance = -1 
+
+misctab:toggle({
+    name = "Connection exploit",
+    flag = "connection_exploit",
+    default = getgenv().Zero.Ragebot.ConnectionExploit,
+    callback = function(v)
+        getgenv().Zero.Ragebot.ConnectionExploit = v
+
+        if v then
+            conn = RunService.Stepped:Connect(function()
+                if not (LockedOn and CurrentTarget and CurrentTarget.Character and lp.Character) then 
+                    return
+                end
+
+                local myChar = lp.Character
+                local targetChar = CurrentTarget.Character
+
+                local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+                local targetRoot = targetChar:FindFirstChild("LowerTorso") 
+                    or targetChar:FindFirstChild("HumanoidRootPart")
+                    or targetChar:FindFirstChild("Torso") -- R6 fallback
+
+                if not (myRoot and targetRoot) then return end
+
+                -- Calculate position behind target (offsetDistance is already -1)
+                local behindCFrame = targetRoot.CFrame * CFrame.new(0, 0, offsetDistance)
+
+                -- Direct CFrame teleport
+                myRoot.CFrame = behindCFrame
+
+                -- Also spam weld for extra attachment
+                local tempWeld = Instance.new("Weld")
+                tempWeld.Part0 = myRoot
+                tempWeld.Part1 = targetRoot
+                tempWeld.C0 = CFrame.new(0, 0, offsetDistance)
+                tempWeld.Parent = myRoot
+                
+                -- Destroy immediately
+                tempWeld:Destroy()
+
+                -- knife logic
+                local knife = myChar:FindFirstChild("[Knife]") 
+                    or lp.Backpack:FindFirstChild("[Knife]")
+
+                if knife then
+                    knife.Parent = myChar
+                    knife:Activate()
+                end
+            end)
+        else
+            if conn then
+                conn:Disconnect()
+                conn = nil
+            end
+        end
+    end
+})
+
+misctab:toggle({
+    name = "God mode",
+    flag = "god_mode",
+    default = false,
+    callback = function(v)
+        if HoodcustomsId[game.PlaceId] then
+			togglegod(v)
+		else
+			getgenv().library:notification({ text = "Hood customs only feature." }, 5)
+		end
+	end
+})
+-- ========== VISUALS TAB ==========
+
+
+local VisSec = Visuals:section({ name = "ESP", side = "left" })
+
+VisSec:toggle({
+    name = "Name ESP",
+    flag = "name_esp",
+    default = false,
+    callback = function(v)
+        if toggleESP then
+            toggleESP("Name", v)
+        end
+    end
+})
+
+VisSec:toggle({
+    name = "Distance ESP",
+    flag = "distance_esp",
+    default = false,
+    callback = function(v)
+        if toggleESP then
+            toggleESP("Distance", v)
+        end
+    end
+})
+
+VisSec:toggle({
+    name = "Weapon ESP",
+    flag = "weapon_esp",
+    default = false,
+    callback = function(v)
+        if toggleESP then
+            toggleESP("Weapon", v)
+        end
+    end
+})
+
+VisSec:toggle({
+    name = "Highlight Enabled",
+    flag = "chams_enabled",
+    default = getgenv().Zero.Chams.Enabled,
+    callback = function(v)
+        getgenv().Zero.Chams.Enabled = v
+        if updateChams then
+            updateChams()
+        end
+    end
+})
+
+VisSec:colorpicker({
+    name = "Fill Color",
+    flag = "chams_fill_color",
+    color = getgenv().Zero.Chams.FillColor,
+    alpha = getgenv().Zero.Chams.FillTransparency,
+    callback = function(color, alpha)
+        getgenv().Zero.Chams.FillColor = color
+        getgenv().Zero.Chams.FillTransparency = alpha
+        if updateChams then
+            updateChams()
+        end
+    end
+})
+
+VisSec:colorpicker({
+    name = "Outline Color",
+    flag = "chams_outline_color",
+    color = getgenv().Zero.Chams.OutlineColor,
+    alpha = getgenv().Zero.Chams.OutlineTransparency,
+    callback = function(color, alpha)
+        getgenv().Zero.Chams.OutlineColor = color
+        getgenv().Zero.Chams.OutlineTransparency = alpha
+        if updateChams then
+            updateChams()
+        end
+    end
+})
+local uiVisSec = Visuals:section({ name = "UI", side = "right" })
+uiVisSec:toggle({
+	name = "Gooner Anime girl background",
+	flag = "anime_girl_bg",
+	default = getgenv().Zero.UI.AnimeGirlBackground,
+	callback = function(v)
+    getgenv().Zero.UI.AnimeGirlBackground = v
+    for _, child in getgenv().library.gui:GetChildren() do
+        if child:IsA("ImageLabel") then
+            if v then
+				getgenv().Zero.UI.AnimeGirlBackground = true
+                child.Image = "rbxassetid://15309876546" --6311243693 also good
+                child.Visible = true
+            else
+				getgenv().Zero.UI.AnimeGirlBackground = false
+                child.Image = ""
+                child.Visible = false
+            end
+            break
+        end
+    end
+end
+})
+-- ========== CONFIGS TAB ==========
+
+local config_section = Configs:section({ name = "Configuration System", side = "left" })
+
+local dir = "zeroconfigs/"
+
+-- Create directory if it doesn't exist
+pcall(function()
+    if not isfolder(dir) then
+        makefolder(dir)
+    end
+end)
+
+-- Function to get all config files
+local function getConfigs()
+    local configs = {}
+    pcall(function()
+        local files = listfiles(dir)
+        for _, file in ipairs(files) do
+            local name = string.match(file, dir .. "(.+)%.cfg")
+            if name then
+                table.insert(configs, name)
+            end
+        end
+    end)
+    return configs
+end
+
+-- Store references to avoid obfuscation issues
+local config_name_list_flag = "config_name_list"
+local config_name_text_flag = "config_name_text_box"
+
+-- Populate dropdown
+getgenv().library.config_holder = config_section:dropdown({
+    name = "Configs",
+    items = getConfigs(),
+    flag = config_name_list_flag,
+    multi = false
+})
+
+-- Textbox for new config name
+config_section:textbox({
+    flag = config_name_text_flag
+})
+
+-- Helper functions to avoid inline concatenation
+local function getConfigPath(name)
+    return dir .. tostring(name) .. ".cfg"
+end
+
+local function getConfigName(flagName)
+    return getgenv().flags[flagName]
+end
+
+-- Create button
+config_section:button({
+    name = "Create",
+    callback = function()
+        pcall(function()
+            local name = getConfigName(config_name_text_flag)
+            if name and name ~= "" then
+                local path = getConfigPath(name)
+                local configData = getgenv().library:get_config()
+                writefile(path, configData)
+                getgenv().library:notification({ text = "Config created: " .. tostring(name) }, 5)
+                
+                -- Refresh dropdown
+                getgenv().library.config_holder:update_list(getConfigs())
+            end
+        end)
+    end
+})
+
+-- Delete button
+config_section:button({
+    name = "Delete",
+    callback = function()
+        pcall(function()
+            local name = getConfigName(config_name_list_flag)
+            if name then
+                getgenv().library:panel({
+                    name = "Are you sure you want to delete " .. tostring(name) .. "?",
+                    options = { "Yes", "No" },
+                    callback = function(option)
+                        if option == "Yes" then
+                            pcall(function()
+                                local path = getConfigPath(name)
+                                delfile(path)
+                                getgenv().library:notification({ text = "Config deleted: " .. tostring(name)}, 5)
+                                
+                                -- Refresh dropdown
+                                getgenv().library.config_holder:update_list(getConfigs())
+                            end)
+                        end
+                    end
+                })
+            end
+        end)
+    end
+})
+
+-- Load button
+config_section:button({
+    name = "Load",
+    callback = function()
+        pcall(function()
+            local name = getConfigName(config_name_list_flag)
+            if name then
+                local path = getConfigPath(name)
+                local configData = readfile(path)
+                getgenv().library:load_config(configData)
+                getgenv().library:notification({ text = "Config loaded: " .. tostring(name)}, 5)
+            end
+        end)
+    end
+})
+
+-- Save button
+config_section:button({
+    name = "Save",
+    callback = function()
+        pcall(function()
+            local name = getConfigName(config_name_list_flag)
+            if name then
+                local path = getConfigPath(name)
+                local configData = getgenv().library:get_config()
+                writefile(path, configData)
+                getgenv().library:notification({ text = "Config saved: " .. tostring(name) }, 5)
+            end
+        end)
+    end
+})
+
+-- Unload button
+config_section:button({
+    name = "Unload Config",
+    callback = function()
+        pcall(function()
+            if getgenv().library.old_config then
+                getgenv().library:load_config(getgenv().library.old_config)
+                getgenv().library:notification({ text = "Config unloaded" }, 5)
+            end
+        end)
+    end
+})
+
+config_section:button({
+    name = "Unload Menu",
+    callback = function()
+        pcall(function()
+            getgenv().library:unload()
+        end)
+    end
+})
+
+
+task.wait()
+pcall(function()
+    getgenv().library.old_config = getgenv().library:get_config()
+end)
+
+
+
+local config_nigga = Configs:section({ name = "Menu", side = "right" })
+config_nigga:keybind({name = "UI Bind", default = Enum.KeyCode.LeftAlt,
+ callback = function(v)
+  window.set_menu_visibility(v)
+  
+ end})
+-- remove fuckahh watermark and playerlist
+window.toggle_watermark(false)
+
+-- change color
+getgenv().library:update_theme("accent", Color3.fromRGB(255,111,255))
+
+local req = (http_request or request or syn.request)
+
+    local universeId = game.GameId
+    local res = req({
+    Url = "https://games.roblox.com/v1/games?universeIds=" .. universeId,
+    Method = "GET"
+    })
+
+    local data = game:GetService("HttpService"):JSONDecode(res.Body)
+    local gamename = data.data[1].name
+
+for i = 1, 15 do 
+    if HoodcustomsId[game.PlaceId] then 
+		getgenv().library:notification({text = "Hood customs detected, force hit is automatically enabled when auto fire is"}, 10)
+	elseif 
+	DahoodId[game.PlaceId] then 
+		getgenv().library:notification({text = "Da hood detected, force hit is automatically enabled when auto fire is"}, 10)
+	else 
+		getgenv().library:notification({text = gamename.." Detected."}, 5)
+	end 
+end
+-- Open main tab
+Main.open_tab()
