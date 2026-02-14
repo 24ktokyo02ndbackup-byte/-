@@ -3,7 +3,6 @@ local updatelog = {[[
 ]]}
 
 
-spawn(function()
 function IsMobile()
     if getgenv().IsMobile then 
         return true
@@ -4606,4 +4605,3 @@ for i = 1, 15 do
 end
 
 Main.open_tab()
-end)
