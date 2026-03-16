@@ -1,0 +1,1722 @@
+local Hollow = {}
+
+Hollow.Ragebot = {
+    Enabled = false;
+    Keybind = Enum.KeyCode.Q;
+    HitPart = "Head";
+    Autofire = false;
+    AutofireDelay = 0.25;
+    LookAt = false;
+    AutoEquipEnabled = false;
+    AutoEquip = {
+        ["Aug"]          = true,
+        ["Lmg"]          = false,
+        ["Double-Barrel"] = false,
+        ["Revolver"]     = false,
+        ["Flintlock"]    = false,
+        ["Rifle"]        = false,
+    };
+    LockonShooter = false;
+}
+
+Hollow.Forcehit = {
+    Enabled = false;
+    Keybind = Enum.KeyCode.Q;
+    Multigun = false;
+    LookAt = false;
+    AutoEquipEnabled = false;
+    AutoEquip = {
+        ["Aug"]          = true,
+        ["Lmg"]          = false,
+        ["Double-Barrel"] = false,
+        ["Revolver"]     = false,
+        ["Flintlock"]    = false,
+        ["Rifle"]        = false,
+    };
+    LockonShooter = false;
+}
+
+Hollow.FollowTarget = {
+    Enabled = false;
+    Radius = 8.5;
+    Height = 1;
+    Speed = 10;
+    Mode = "Strafe"; -- "Experimental", "Random", "Strafe"
+    Method = "Teleport"; -- "Teleport", "Desync"
+}
+
+Hollow.AimAssist = {
+    Enabled = false;
+    Keybind = Enum.KeyCode.Q;
+    Hitpart = "Head";
+    Smoothing = 1;
+    Prediction = 0;
+}
+
+Hollow.BulletRedirection = {}
+
+Hollow.Checks = {
+    KOcheck = true;
+    Wallcheck = false;
+    ForceFieldcheck = false;
+}
+
+Hollow.Movement = {
+    CFrameflyenabled = false;
+    CFrameflykeybind = Enum.KeyCode.Z;
+    CFrameflyvalue = 5;
+    CFramespeedenabled = false;
+    CFramespeedkeybind = Enum.KeyCode.X;
+    CFramespeedvalue = 1;
+}
+
+Hollow.TargetVisuals = {
+    Tracer = false;
+    TracerColor = Color3.fromRGB(255, 255, 255);
+}
+
+Hollow.Misc = {
+    AutoReload = true;
+    AutoStomp = true;
+    Rapidfire = false;
+}
+
+Hollow.Desync = {
+    Visualizer = false;
+    Mode = "Clone"; -- Shadow Clone or Beam
+    BeamOrigin = "Mouse"; -- Mouse or Character
+    BeamColor = Color3.fromRGB(255, 255, 255);
+    CloneMaterial = Enum.Material.ForceField;
+    CloneColor = Color3.fromRGB(255, 255, 255);
+    CloneTransparency = 0.1;
+}
+
+Hollow.SelfVisuals = {}
+
+Hollow.BulletTracers = {
+    Enabled = false;
+    Mode = "Laser"; -- Line, Laser, Light, Flow
+    Color = Color3.fromRGB(255,255,255);
+    Transparency = 0;
+    Lifetime = 1;
+}
+
+Hollow.TargetMonitoring = {
+    HitNotifications = true;
+    HitSounds = true;
+    HitSoundType = "Neverlose";
+    HitSoundsIDS = {
+        Neverlose = 6534948092;
+        Snipe = 137392628136734;
+        Retro = 118157652132357;
+    }
+}
+Hollow.WorldVisuals = {}
+
+Hollow.SavedSetiings = {}
+----------------------------- Source
+
+-- << Services >>
+local cloneref = cloneref or function(obj) return obj end
+local Players = cloneref(game:GetService("Players"))
+local localplayer = cloneref(Players.LocalPlayer)
+local RS = cloneref(game:GetService("RunService"))
+local UIS = cloneref(game:GetService("UserInputService"))
+local Camera = workspace.CurrentCamera
+local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
+local VirtualInputManager = cloneref(game:GetService("VirtualInputManager"))
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MainEvent = ReplicatedStorage:WaitForChild("MainEvent")
+
+-- << Variables >>
+local CurrentRagebotTarget = nil
+local LockedOnRagebot = false
+local CurrentForceHitTarget = nil
+local LockedOnForceHit = false
+local CurrentCamTarget = nil
+local LockedOnCam = false
+local ForcehitEquipIndex = 1
+local RagebotEquipIndex = 1
+local flyActive = false
+local Mouse = localplayer:GetMouse()
+local SavedPositionBeforeFollow = nil
+
+-- << Tracers >>
+local RagebotTracerLine = Drawing.new("Line")
+RagebotTracerLine.Thickness = 0.1
+RagebotTracerLine.Transparency = 1
+RagebotTracerLine.Color = Hollow.TargetVisuals.TracerColor
+RagebotTracerLine.Visible = false
+
+local ForcehitTracerLine = Drawing.new("Line")
+ForcehitTracerLine.Thickness = 0.1
+ForcehitTracerLine.Transparency = 1
+ForcehitTracerLine.Color = Hollow.TargetVisuals.TracerColor
+ForcehitTracerLine.Visible = false
+
+----------------------------- Functions
+
+-- << Get game >>
+function GetGame()
+    if game.PlaceId == 9825515356 or game.PlaceId == 138995385694035 then 
+        return "Hood Customs"
+    elseif game.PlaceId == 2788229376 then 
+        return "Da Hood"
+    else
+        return
+    end
+end
+
+-- << Get tool >>
+function GetTool()
+    return game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+end
+
+-- << Closest player to mouse >>
+local function get_closest_player_to_mouse()
+    local mouse = localplayer:GetMouse()
+    local closest_plr = nil
+    local closest_dist = math.huge
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.UserId == localplayer.UserId then continue end
+        if not (plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")) then continue end
+        if not plr.Character:FindFirstChild("Humanoid") then continue end
+        if plr.Character.Humanoid.Health <= 0 then continue end
+
+        local hrp = plr.Character.HumanoidRootPart
+        local screen_pos, on_screen = Camera:WorldToScreenPoint(hrp.Position)
+        if not on_screen then continue end
+
+        local dist = (Vector2.new(screen_pos.X, screen_pos.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
+        if dist < closest_dist then
+            closest_dist = dist
+            closest_plr = plr
+        end
+    end
+
+    return closest_plr
+end
+
+-- << Checks >>
+function CheckIsKO(targetplayer)
+    if targetplayer and targetplayer.Character and targetplayer.Character:FindFirstChild("BodyEffects") and targetplayer.Character.BodyEffects:FindFirstChild("K.O") and targetplayer.Character.BodyEffects["K.O"].Value then
+        return true
+    end
+    return false
+end
+
+function CheckIsDead(targetplayer)
+    if not targetplayer then return true end
+    if not targetplayer.Character then return true end
+    local hum = targetplayer.Character:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return true end
+    if not targetplayer.Character:FindFirstChild("HumanoidRootPart") then return true end
+    return false
+end
+
+function checkwalls(targetplayer)
+    if not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then return true end
+    if not targetplayer.Character or not targetplayer.Character:FindFirstChild("HumanoidRootPart") then return true end
+    if workspace:FindPartOnRayWithIgnoreList(Ray.new(
+        localplayer.Character.HumanoidRootPart.Position, 
+        (targetplayer.Character.HumanoidRootPart.Position - localplayer.Character.HumanoidRootPart.Position).Unit * 
+        (targetplayer.Character.HumanoidRootPart.Position - localplayer.Character.HumanoidRootPart.Position).Magnitude
+    ), {localplayer.Character, targetplayer.Character}) then
+        return true
+    end
+    return false
+end
+
+function checkforcefield(targetplayer)
+    if targetplayer.Character and targetplayer.Character:FindFirstChildOfClass("ForceField") then
+        return true
+    end
+    return false
+end
+
+-- << Restore saved position helper >>
+local followWasActive = false  -- tracks if we were actively following last frame
+
+local function RestoreSavedPosition()
+    if SavedPositionBeforeFollow and localplayer.Character and localplayer.Character:FindFirstChild("HumanoidRootPart") then
+        localplayer.Character.HumanoidRootPart.CFrame = SavedPositionBeforeFollow
+    end
+    SavedPositionBeforeFollow = nil
+    followWasActive = false
+end
+
+-- << Shooting remotes >>
+local function HoodCustomsShoot(target)
+    local Target = target.Character:FindFirstChild("Head")
+    local args = {
+        [1] = "Shoot",
+        [2] = {
+            [1] = {
+                [1] = { Normal = Target.Position, Instance = Target, Position = Target.Position },
+                [2] = { Normal = Target.Position, Instance = Target, Position = Target.Position },
+                [3] = { Normal = Target.Position, Instance = Target, Position = Target.Position },
+                [4] = { Normal = Target.Position, Instance = Target, Position = Target.Position },
+                [5] = { Normal = Target.Position, Instance = Target, Position = Target.Position }
+            },
+            [2] = {
+                [1] = { thePart = Target, theOffset = Vector3.new(0,0,0) },
+                [2] = { thePart = Target, theOffset = Vector3.new(0,0,0) },
+                [3] = { thePart = Target, theOffset = Vector3.new(0,0,0) },
+                [4] = { thePart = Target, theOffset = Vector3.new(0,0,0) },
+                [5] = { thePart = Target, theOffset = Vector3.new(0,0,0) }
+            },
+            [3] = GetTool().Handle.Position,
+            [4] = GetTool().Handle.Position,
+            [5] = workspace:GetServerTimeNow()
+        }
+    }
+    ReplicatedStorage.MainEvent:FireServer(unpack(args))
+end
+
+local function DaHoodShoot(Target, gun)
+    if not Target then return end
+    if not Target.Character then return end
+    if not gun or not gun:FindFirstChild("Handle") then return end
+    local targetHRP = Target.Character:FindFirstChild("HumanoidRootPart")
+    local targetHead = Target.Character:FindFirstChild("Head")
+    local localHRP = localplayer.Character and localplayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHRP or not targetHead or not localHRP then return end
+    ReplicatedStorage.MainEvent:FireServer(
+        "ShootGun",
+        gun.Handle,
+        localHRP.Position,
+        targetHRP.Position,
+        targetHead,
+        Vector3.new(0, 0, -1)
+    )
+end
+
+-- << Desync >>
+local findFirstChild = game.FindFirstChild
+local bindToRenderStep = RS.BindToRenderStep
+local cframes = {}
+local desyncActive = false
+local targetDesyncCFrame = nil
+
+local function localPlayerIsAlive()
+    local character = localplayer.Character
+    return character
+        and findFirstChild(character, "Humanoid")
+        and character.Humanoid.Health > 0
+        and findFirstChild(character, "HumanoidRootPart")
+end
+
+local function getLocalCFrame()
+    return localPlayerIsAlive() and localplayer.Character.HumanoidRootPart.CFrame
+end
+
+RS.Heartbeat:Connect(function()
+    cframes.client = getLocalCFrame() 
+    local realCFrame = cframes.client
+    if realCFrame and desyncActive and targetDesyncCFrame then
+        localplayer.Character.HumanoidRootPart.CFrame = targetDesyncCFrame
+        cframes.desync = targetDesyncCFrame
+    else
+        cframes.desync = nil
+        cframes.client = realCFrame
+    end
+end)
+
+bindToRenderStep(RS, "New Frame Start", Enum.RenderPriority.First.Value, function()
+    if cframes.client then
+        localplayer.Character.HumanoidRootPart.CFrame = cframes.client
+    end
+end)
+
+function desynccframe(cf)
+    if typeof(cf) == "CFrame" then
+        targetDesyncCFrame = cf
+        desyncActive = true
+    else
+        warn("desynccframe: argument must be a CFrame")
+    end
+end
+
+function desyncreset()
+    desyncActive = false
+    targetDesyncCFrame = nil
+    cframes.desync = nil
+end
+
+-- << Desync Visualizer - Beam >>
+local desyncBeam = nil
+local desyncAttach0 = nil
+local desyncAttach1 = nil
+
+local function createDesyncVisualizer()
+    if desyncAttach0 then desyncAttach0:Destroy() end
+    if desyncAttach1 then desyncAttach1:Destroy() end
+
+    local attach0 = Instance.new("Attachment")
+    attach0.Parent = workspace.Terrain
+
+    local attach1 = Instance.new("Attachment")
+    attach1.Parent = workspace.Terrain
+
+    local beam = Instance.new("Beam")
+    beam.Attachment0 = attach0
+    beam.Attachment1 = attach1
+    beam.Width0 = 0.15
+    beam.Width1 = 0.15
+    beam.Color = ColorSequence.new(Color3.fromRGB(255,255,255))
+    beam.LightEmission = 1
+    beam.FaceCamera = true
+    beam.Segments = 1
+    beam.Transparency = NumberSequence.new(0)
+    beam.Parent = workspace.Terrain
+
+    desyncAttach0 = attach0
+    desyncAttach1 = attach1
+    desyncBeam = beam
+end
+
+local function destroyDesyncVisualizer()
+    if desyncAttach0 then desyncAttach0:Destroy() end
+    if desyncAttach1 then desyncAttach1:Destroy() end
+    desyncAttach0 = nil
+    desyncAttach1 = nil
+    desyncBeam = nil
+end
+
+RS.RenderStepped:Connect(function()
+    if not Hollow.Desync.Visualizer or Hollow.Desync.Mode ~= "Beam" then
+        if desyncBeam then destroyDesyncVisualizer() end
+        return
+    end
+    if not desyncBeam then
+        createDesyncVisualizer()
+    end
+    if desyncActive and cframes.desync then
+        desyncBeam.Color = ColorSequence.new(Hollow.Desync.BeamColor)
+        if Hollow.Desync.BeamOrigin == "Character" then
+            local char = game.Players.LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if not hrp then desyncBeam.Enabled = false return end
+            desyncAttach0.WorldPosition = hrp.Position
+        elseif Hollow.Desync.BeamOrigin == "Mouse" then
+            local mouse = game.Players.LocalPlayer:GetMouse()
+            desyncAttach0.WorldPosition = mouse.Hit.Position
+        end
+        desyncAttach1.WorldPosition = cframes.desync.Position
+        desyncBeam.Enabled = true
+    else
+        desyncBeam.Enabled = false
+    end
+end)
+
+-- << Desync Visualizer - Clone >>
+local cloneParts = {}
+
+local function createCloneVisualizer()
+    local function makePart(size, offset)
+        local p = Instance.new("Part")
+        p.Size = size
+        p.Anchored = true
+        p.CanCollide = false
+        p.CastShadow = false
+        p.Material = Enum.Material.ForceField
+        p.Color = Color3.fromRGB(255, 255, 255)
+        p.Transparency = 0
+        p.Parent = workspace
+        return { part = p, offset = offset }
+    end
+
+    cloneParts.Head     = makePart(Vector3.new(1, 1, 1),   CFrame.new(0, 1.5, 0))
+    cloneParts.Torso    = makePart(Vector3.new(2, 2, 1),   CFrame.new(0, 0, 0))
+    cloneParts.LeftArm  = makePart(Vector3.new(1, 2, 1),   CFrame.new(-2, 0, 0))
+    cloneParts.RightArm = makePart(Vector3.new(1, 2, 1),   CFrame.new(2, 0, 0))
+end
+
+local function destroyCloneVisualizer()
+    for _, data in pairs(cloneParts) do
+        data.part:Destroy()
+    end
+    cloneParts = {}
+end
+
+RS.RenderStepped:Connect(function()
+    if not Hollow.Desync.Visualizer or Hollow.Desync.Mode ~= "Clone" then
+        if next(cloneParts) then destroyCloneVisualizer() end
+        return
+    end
+    if not next(cloneParts) then
+        createCloneVisualizer()
+    end
+
+    if desyncActive and cframes.desync then
+        for _, data in pairs(cloneParts) do
+            data.part.CFrame = cframes.desync * data.offset
+            data.part.Material = Hollow.Desync.CloneMaterial
+            data.part.Color = Hollow.Desync.CloneColor
+            data.part.Transparency = Hollow.Desync.CloneTransparency
+        end
+    else
+        for _, data in pairs(cloneParts) do
+            data.part.Transparency = 1
+        end
+    end
+end)
+
+-- << Bullet tracers >>
+local BulletTracerHeartbeat = {}
+
+local BeamStyles = {
+    ["Laser"] = {
+        FaceCamera = true, TextureSpeed = 1.5, Width1 = 0.25,
+        TextureLength = 2, Width0 = 0.25, LightEmission = 3,
+        Brightness = 2.5, Texture = "rbxassetid://12781800668"
+    },
+    ["Light"] = {
+        FaceCamera = true, TextureSpeed = 2, Width1 = 0.25,
+        LightInfluence = 1, LightEmission = 3, Width0 = 0.25,
+        Segments = 1, Texture = "http://www.roblox.com/asset/?id=2382169232",
+        TextureLength = 15, TextureMode = Enum.TextureMode.Wrap
+    },
+    ["Flow"] = {
+        FaceCamera = true, TextureSpeed = 2.5, Width1 = 0.2,
+        Width0 = 0.2, LightEmission = 3, Brightness = 5,
+        Texture = "rbxassetid://12788927812"
+    }
+}
+
+local function CreateBeamTracer(startPos, endPos, lifetime, styleData)
+    local beam = Instance.new("Beam")
+    for prop, value in pairs(styleData) do beam[prop] = value end
+    beam.Color = ColorSequence.new(Hollow.BulletTracers.Color)
+    beam.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, Hollow.BulletTracers.Transparency),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    local attach0 = Instance.new("Attachment")
+    attach0.CFrame = CFrame.new(startPos)
+    attach0.Parent = workspace.Terrain
+    local attach1 = Instance.new("Attachment")
+    attach1.CFrame = CFrame.new(endPos)
+    attach1.Parent = workspace.Terrain
+    beam.Attachment0 = attach0
+    beam.Attachment1 = attach1
+    beam.Parent = workspace.Terrain
+    local elapsed = 0
+    local fadeFunc = function(dt)
+        elapsed += dt
+        local alpha = math.clamp(elapsed / lifetime, 0, 1)
+        beam.Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, Hollow.BulletTracers.Transparency + (1 - Hollow.BulletTracers.Transparency) * alpha),
+            NumberSequenceKeypoint.new(1, 1)
+        }
+    end
+    table.insert(BulletTracerHeartbeat, fadeFunc)
+    task.delay(lifetime, function()
+        for i, fn in ipairs(BulletTracerHeartbeat) do
+            if fn == fadeFunc then table.remove(BulletTracerHeartbeat, i) break end
+        end
+        beam:Destroy()
+        attach0:Destroy()
+        attach1:Destroy()
+    end)
+end
+
+local function CreateLineTracer(startPos, endPos, lifetime)
+    local transparency = Hollow.BulletTracers.Transparency
+    local outline = Drawing.new("Line")
+    outline.Color = Color3.new(0, 0, 0)
+    outline.Thickness = 3
+    outline.Transparency = transparency
+    outline.Visible = false
+
+    local line = Drawing.new("Line")
+    line.Color = Hollow.BulletTracers.Color
+    line.Thickness = 1
+    line.Transparency = transparency
+    line.Visible = false
+
+    local elapsedTime = 0
+
+    local updateFunction = function(dt)
+        if not line or not outline then return end
+        elapsedTime += dt
+
+        local screenStart, startOnScreen = Camera:WorldToViewportPoint(startPos)
+        local screenEnd, endOnScreen = Camera:WorldToViewportPoint(endPos)
+
+        if not startOnScreen and not endOnScreen then
+            line.Visible = false
+            outline.Visible = false
+            return
+        end
+
+        local fromPos = Vector2.new(screenStart.X, screenStart.Y)
+        local toPos = Vector2.new(screenEnd.X, screenEnd.Y)
+
+        line.From = fromPos
+        line.To = toPos
+        outline.From = fromPos
+        outline.To = toPos
+        line.Visible = true
+        outline.Visible = true
+
+        if elapsedTime > lifetime then
+            local alpha = math.clamp((elapsedTime - lifetime) / 0.3, 0, 1)
+            local newTransparency = transparency + (1 - transparency) * alpha
+            line.Transparency = newTransparency
+            outline.Transparency = newTransparency
+        end
+    end
+
+    table.insert(BulletTracerHeartbeat, updateFunction)
+
+    task.delay(lifetime + 0.3, function()
+        for i, fn in ipairs(BulletTracerHeartbeat) do
+            if fn == updateFunction then table.remove(BulletTracerHeartbeat, i) break end
+        end
+        line:Remove()
+        outline:Remove()
+        line = nil
+        outline = nil
+    end)
+end
+
+local function Create_Tracer(startPos, endPos)
+    if not Hollow.BulletTracers.Enabled then return end
+    local mode = Hollow.BulletTracers.Mode
+    local lifetime = Hollow.BulletTracers.Lifetime
+    if mode == "Line" then
+        CreateLineTracer(startPos, endPos, lifetime)
+    elseif BeamStyles[mode] then
+        CreateBeamTracer(startPos, endPos, lifetime, BeamStyles[mode])
+    end
+end
+
+RS.Heartbeat:Connect(function(dt)
+    for _, fn in ipairs(BulletTracerHeartbeat) do
+        fn(dt)
+    end
+end)
+
+-- << Target Monitoring functions >>
+local CurrentTargetHealth
+local function Monitor(active, target)
+    if not active then
+        if Hollow.Healthconn then Hollow.Healthconn:Disconnect() Hollow.Healthconn = nil end
+        return
+    end
+
+    if target and target.Character then 
+        CurrentTargetHealth = target.Character:FindFirstChild("Humanoid").Health
+        Hollow.Healthconn = target.Character:FindFirstChild("Humanoid").HealthChanged:Connect(function(health)
+            if health < CurrentTargetHealth then
+                if Hollow.TargetMonitoring.HitNotifications then 
+                    Library:Notify(target.Name .. " / "..target.DisplayName.." got hit for -" .. math.floor(CurrentTargetHealth - health))
+                end
+
+                if Hollow.TargetMonitoring.HitSounds then 
+                    local sound = Instance.new("Sound")
+                    sound.SoundId = "rbxassetid://"..Hollow.TargetMonitoring.HitSoundsIDS[Hollow.TargetMonitoring.HitSoundType]
+                    sound.Parent = game.Workspace
+                    sound:Play()
+                end
+
+                CurrentTargetHealth = health
+            end
+        end)
+    end
+end
+
+-- << Shooter listeners >>
+local last_shooter = nil
+local last_position = nil
+MainEvent.OnClientEvent:Connect(function(packet, ...)
+    local args = {...}
+
+    -- DH
+    if packet == "ClientBullet" then
+        local shooter = args[1]
+        last_position = args[4]
+        if shooter then
+            last_shooter = Players:FindFirstChild(shooter.Name)
+        end
+    elseif packet == "ShotFrom" and last_shooter then
+        local shooter = last_shooter
+        local position = last_position
+        last_shooter = nil
+        last_position = nil
+        if Hollow.TargetMonitoring.HitNotifications then 
+            Library:Notify(shooter.Name.." Fucking shot u")
+        end
+        if Hollow.Ragebot.LockonShooter then 
+            desynccframe(localplayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,-9999,0))
+            wait(0.15)
+            desyncreset()
+            CurrentRagebotTarget = shooter 
+            LockedOnRagebot = true 
+        end
+        if Hollow.Forcehit.LockonShooter then
+            desynccframe(localplayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,-9999,0))
+            wait(0.15)
+            desyncreset()
+            CurrentForceHitTarget = shooter 
+            LockedOnForceHit = true 
+        end
+    -- HC
+    elseif packet == "ReplicateHitInstances" then
+        local hitpart = args[1]
+        local shooter = args[2] and args[2][1]
+        if not hitpart or not shooter then return end
+        if not hitpart.Parent then return end
+        local char = localplayer.Character
+        if not char then return end
+
+        if hitpart:IsDescendantOf(char) then
+            if Hollow.TargetMonitoring.HitNotifications then
+                Library:Notify(shooter.Name .. " Fucking shot u")
+            end
+            if Hollow.Ragebot.LockonShooter then 
+                desynccframe(localplayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,-9999,0))
+                wait(0.15)
+                desyncreset()
+                CurrentRagebotTarget = shooter 
+                LockedOnRagebot = true 
+            end
+            if Hollow.Forcehit.LockonShooter then
+                desynccframe(localplayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,-9999,0))
+                wait(0.15)
+                desyncreset()
+                CurrentForceHitTarget = shooter 
+                LockedOnForceHit = true 
+            end
+        end
+    end
+end)
+
+-- << Get Rage System >>
+local function GetRagebotMethod() 
+    if Hollow.Forcehit.Enabled and Hollow.Ragebot.Enabled then
+        return "Forcehit"
+    elseif Hollow.Forcehit.Enabled then
+        return "Forcehit"
+    elseif Hollow.Ragebot.Enabled then
+        return "Ragebot"
+    else
+        return nil
+    end
+end
+
+-- << Follow Target >>
+local function GetFollowTarget()
+    local method = GetRagebotMethod()
+    if method == "Forcehit" and LockedOnForceHit and CurrentForceHitTarget then
+        return CurrentForceHitTarget
+    elseif method == "Ragebot" and LockedOnRagebot and CurrentRagebotTarget then
+        return CurrentRagebotTarget
+    end
+    return nil
+end
+
+-- << Follow Target: Stop following and reset if needed >>
+local function StopFollowTarget()
+    if Hollow.FollowTarget.Method == "Desync" then
+        desyncreset()
+    end
+end
+
+-- << Auto Equip Loop >>
+RS.Heartbeat:Connect(function()
+    local char = localplayer.Character
+    if not char then return end
+
+    local function doAutoEquip(equip)
+        if not equip or type(equip) ~= "table" then return end
+
+        local equippedTool = char:FindFirstChildOfClass("Tool")
+        if equippedTool then
+            local toolInList = false
+            for gunName, selected in pairs(equip) do
+                if selected and gunName and equippedTool.Name:lower():match(gunName:lower()) then
+                    toolInList = true
+                    break
+                end
+            end
+            if not toolInList then
+                equippedTool.Parent = localplayer.Backpack
+            end
+        end
+
+        for gunName, selected in pairs(equip) do
+            if selected and gunName then
+                local alreadyEquipped = false
+                for _, item in ipairs(char:GetChildren()) do
+                    if item:IsA("Tool") and item.Name:lower():match(gunName:lower()) then
+                        alreadyEquipped = true
+                        break
+                    end
+                end
+                if not alreadyEquipped then
+                    for _, item in ipairs(localplayer.Backpack:GetChildren()) do
+                        if item:IsA("Tool") and item.Name:lower():match(gunName:lower()) then
+                            item.Parent = char
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if Hollow.Ragebot.AutoEquipEnabled and Hollow.Ragebot.Autofire and LockedOnRagebot and CurrentRagebotTarget then
+        doAutoEquip(Hollow.Ragebot.AutoEquip)
+    elseif Hollow.Forcehit.AutoEquipEnabled and LockedOnForceHit and CurrentForceHitTarget then
+        doAutoEquip(Hollow.Forcehit.AutoEquip)
+    end
+end)
+----------------------------- Implementation
+
+-- =========================================
+-- < Ragebot >
+-- =========================================
+
+-- Mouse hook
+local mt = getrawmetatable(Mouse)
+setreadonly(mt, false)
+local oldIndex = mt.__index
+mt.__index = newcclosure(function(self, key) 
+    if checkcaller() then return oldIndex(self, key) end
+    if self ~= Mouse then return oldIndex(self, key) end
+    if key ~= "Hit" and key ~= "hit" then return oldIndex(self, key) end
+    if Hollow.Ragebot.Enabled and CurrentRagebotTarget and CurrentRagebotTarget.Character and CurrentRagebotTarget.Character:FindFirstChild(Hollow.Ragebot.HitPart) then
+        return CFrame.new(CurrentRagebotTarget.Character:FindFirstChild(Hollow.Ragebot.HitPart).Position)
+    end
+    return oldIndex(self, key)
+end)
+setreadonly(mt, true)
+
+-- Auto fire
+RS.Heartbeat:Connect(function()
+    if not Hollow.Ragebot.Autofire then return end
+    if not LockedOnRagebot or not CurrentRagebotTarget or not CurrentRagebotTarget.Character then return end
+    if checkforcefield(CurrentRagebotTarget) then return end
+
+    local tool = GetTool()
+    if tool then
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.01)
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        task.wait(Hollow.Ragebot.AutofireDelay)
+    end
+end)
+
+-- Look at
+RS.Heartbeat:Connect(function()
+    if not Hollow.Ragebot.LookAt then
+        if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") then
+            localplayer.Character.Humanoid.AutoRotate = true
+        end
+        return
+    end
+    if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") then
+        localplayer.Character.Humanoid.AutoRotate = LockedOnRagebot == false
+    end
+    if LockedOnRagebot and CurrentRagebotTarget and CurrentRagebotTarget.Character and localplayer.Character and localplayer.Character:FindFirstChild("HumanoidRootPart") and CurrentRagebotTarget.Character:FindFirstChild("HumanoidRootPart") then
+        localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+            localplayer.Character.HumanoidRootPart.Position,
+            Vector3.new(CurrentRagebotTarget.Character.HumanoidRootPart.Position.X, localplayer.Character.HumanoidRootPart.Position.Y, CurrentRagebotTarget.Character.HumanoidRootPart.Position.Z)
+        )
+    end
+end)
+
+-- Tracer
+RS.Heartbeat:Connect(function()
+    if not Hollow.TargetVisuals.Tracer or not Hollow.Ragebot.Enabled then
+        RagebotTracerLine.Visible = false
+        return
+    end
+    if LockedOnRagebot and CurrentRagebotTarget and CurrentRagebotTarget.Character and CurrentRagebotTarget.Character:FindFirstChild("HumanoidRootPart") then
+        local screenPos = Camera:WorldToViewportPoint(CurrentRagebotTarget.Character.HumanoidRootPart.Position)
+        if screenPos.Z > 0 then
+            RagebotTracerLine.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            RagebotTracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
+            RagebotTracerLine.Color = Hollow.TargetVisuals.TracerColor
+            RagebotTracerLine.Visible = true
+        else
+            RagebotTracerLine.Visible = false
+        end
+    else
+        RagebotTracerLine.Visible = false
+    end
+end)
+
+-- KO check
+RS.Heartbeat:Connect(function()
+    if not Hollow.Checks.KOcheck or not Hollow.Ragebot.Enabled then return end
+    if CurrentRagebotTarget and CurrentRagebotTarget.Character and CheckIsKO(CurrentRagebotTarget) then
+        LockedOnRagebot = false
+        CurrentRagebotTarget = nil
+        task.wait(0.25)
+        desyncreset()
+    end
+end)
+
+-- Locking
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Hollow.Ragebot.Keybind and Hollow.Ragebot.Enabled then
+        if LockedOnRagebot then
+            LockedOnRagebot = false
+            CurrentRagebotTarget = nil
+            Monitor(false)
+            task.wait(0.25)
+            desyncreset()
+        else
+            local closestPlayer = get_closest_player_to_mouse()
+            if closestPlayer then
+                if Hollow.Checks.Wallcheck and checkwalls(closestPlayer) then return end
+                CurrentRagebotTarget = closestPlayer
+                LockedOnRagebot = true
+                Monitor(true, CurrentRagebotTarget)
+            end
+        end
+    end
+end)
+
+-- =========================================
+-- < Forcehit >
+-- =========================================
+
+-- Main loop
+RS.PreSimulation:Connect(function()
+    if not Hollow.Forcehit.Enabled then return end
+    if not LockedOnForceHit then return end
+    if not CurrentForceHitTarget or not CurrentForceHitTarget.Character then return end
+    if checkforcefield(CurrentForceHitTarget) and Hollow.Checks.ForceFieldcheck then return end
+
+    local char = localplayer.Character
+    if not char then return end
+
+    local gunsToUse = {}
+    for _, item in ipairs(char:GetChildren()) do
+        if item:IsA("Tool") then
+            table.insert(gunsToUse, item)
+        end
+    end
+
+    if #gunsToUse == 0 then
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then table.insert(gunsToUse, tool) end
+    end
+
+    for _, gun in ipairs(gunsToUse) do
+        if GetGame() == "Hood Customs" then
+            HoodCustomsShoot(CurrentForceHitTarget)
+        elseif GetGame() == "Da Hood" then
+            DaHoodShoot(CurrentForceHitTarget, gun)
+        end
+    end
+end)
+
+-- Look at
+RS.Heartbeat:Connect(function()
+    if not Hollow.Forcehit.LookAt then
+        if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") then
+            localplayer.Character.Humanoid.AutoRotate = true
+        end
+        return
+    end
+    if localplayer.Character and localplayer.Character:FindFirstChild("Humanoid") then
+        localplayer.Character.Humanoid.AutoRotate = LockedOnForceHit == false
+    end
+    if LockedOnForceHit and CurrentForceHitTarget and CurrentForceHitTarget.Character and localplayer.Character and localplayer.Character:FindFirstChild("HumanoidRootPart") and CurrentForceHitTarget.Character:FindFirstChild("HumanoidRootPart") then
+        localplayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+            localplayer.Character.HumanoidRootPart.Position,
+            Vector3.new(CurrentForceHitTarget.Character.HumanoidRootPart.Position.X, localplayer.Character.HumanoidRootPart.Position.Y, CurrentForceHitTarget.Character.HumanoidRootPart.Position.Z)
+        )
+    end
+end)
+
+-- Tracer
+RS.Heartbeat:Connect(function()
+    if not Hollow.TargetVisuals.Tracer or not Hollow.Forcehit.Enabled then
+        ForcehitTracerLine.Visible = false
+        return
+    end
+    if LockedOnForceHit and CurrentForceHitTarget and CurrentForceHitTarget.Character and CurrentForceHitTarget.Character:FindFirstChild("HumanoidRootPart") then
+        local screenPos = Camera:WorldToViewportPoint(CurrentForceHitTarget.Character.HumanoidRootPart.Position)
+        if screenPos.Z > 0 then
+            ForcehitTracerLine.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+            ForcehitTracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
+            ForcehitTracerLine.Color = Hollow.TargetVisuals.TracerColor
+            ForcehitTracerLine.Visible = true
+        else
+            ForcehitTracerLine.Visible = false
+        end
+    else
+        ForcehitTracerLine.Visible = false
+    end
+end)
+
+-- KO check
+RS.Heartbeat:Connect(function()
+    if not Hollow.Checks.KOcheck or not Hollow.Forcehit.Enabled then return end
+    if CurrentForceHitTarget and CurrentForceHitTarget.Character and CheckIsKO(CurrentForceHitTarget) then
+        LockedOnForceHit = false
+        CurrentForceHitTarget = nil
+        Monitor(false)
+        task.wait(0.25)
+        desyncreset()
+    end
+end)
+
+-- Locking
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Hollow.Forcehit.Keybind and Hollow.Forcehit.Enabled then
+        if LockedOnForceHit then
+            LockedOnForceHit = false
+            CurrentForceHitTarget = nil
+            Monitor(false)
+            task.wait(0.25)
+            desyncreset()
+        else
+            local closestPlayer = get_closest_player_to_mouse()
+            if closestPlayer then
+                if Hollow.Checks.Wallcheck and checkwalls(closestPlayer) then return end
+                CurrentForceHitTarget = closestPlayer
+                LockedOnForceHit = true
+                Monitor(true, CurrentForceHitTarget)
+            end
+        end
+    end
+end)
+
+-- =========================================
+-- < Aim Assist >
+-- =========================================
+
+-- Main Loop
+RS.RenderStepped:Connect(function()
+    if not Hollow.AimAssist.Enabled then return end
+    if not LockedOnCam or not CurrentCamTarget then return end
+    local character = CurrentCamTarget.Character
+    if not character then
+        LockedOnCam = false
+        CurrentCamTarget = nil
+        return
+    end
+    if Hollow.Checks.KOcheck and CheckIsKO(CurrentCamTarget) then
+        LockedOnCam = false
+        CurrentCamTarget = nil
+        Monitor(false)
+        return
+    end
+    if Hollow.Checks.ForceFieldcheck and checkforcefield(CurrentCamTarget) then
+        return
+    end
+    if Hollow.Checks.Wallcheck and checkwalls(CurrentCamTarget) then
+        return
+    end
+
+    local hitpart = character:FindFirstChild(Hollow.AimAssist.Hitpart)
+    if not hitpart then return end
+
+    local prediction = hitpart.AssemblyLinearVelocity * Hollow.AimAssist.Prediction
+    local targetPos = hitpart.Position + prediction
+    local smoothing = math.clamp(Hollow.AimAssist.Smoothing, 1, 100)
+
+    Camera.CFrame = Camera.CFrame:Lerp(
+        CFrame.new(Camera.CFrame.Position, targetPos),
+        1 / smoothing
+    )
+end)
+
+-- Locking
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if not Hollow.AimAssist.Enabled then return end
+    if input.KeyCode ~= Hollow.AimAssist.Keybind then return end
+
+    if LockedOnCam then
+        LockedOnCam = false
+        CurrentCamTarget = nil
+        Monitor(false)
+    else
+        local closest = get_closest_player_to_mouse()
+        if closest then
+            if Hollow.Checks.Wallcheck and checkwalls(closest) then return end
+            if Hollow.Checks.ForceFieldcheck and checkforcefield(closest) then return end
+            if Hollow.Checks.KOcheck and CheckIsKO(closest) then return end
+            CurrentCamTarget = closest
+            LockedOnCam = true
+            Monitor(true, CurrentCamTarget)
+        end
+    end
+end)
+
+-- =========================================
+-- < Follow Target >
+-- =========================================
+
+local experimentalAngle = 0
+
+local followRestoring = false
+
+
+RS.RenderStepped:Connect(function(dt)
+    if not Hollow.FollowTarget.Enabled then
+        if desyncActive then desyncreset() end
+        return
+    end
+
+    if not localplayer.Character or not localplayer.Character:FindFirstChild("HumanoidRootPart") then return end
+
+    local target = GetFollowTarget()
+
+    if not target or CheckIsDead(target) or (Hollow.Checks.KOcheck and CheckIsKO(target)) then
+        if not followRestoring then
+            followRestoring = true
+            task.spawn(function()
+                if Hollow.FollowTarget.Method == "Desync" then
+                    desyncreset()
+                elseif Hollow.FollowTarget.Method == "Teleport" then
+                    task.wait(0.25)
+                    RestoreSavedPosition()
+                end
+                followRestoring = false
+            end)
+        end
+        return
+    end
+
+    if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+        if not followRestoring then
+            followRestoring = true
+            task.spawn(function()
+                if Hollow.FollowTarget.Method == "Desync" then
+                    desyncreset()
+                elseif Hollow.FollowTarget.Method == "Teleport" then
+                    task.wait(0.25)
+                    RestoreSavedPosition()
+                end
+                followRestoring = false
+            end)
+        end
+        return
+    end
+
+    followRestoring = false
+
+    local hrp = localplayer.Character.HumanoidRootPart
+    local tRoot = target.Character.HumanoidRootPart
+
+    if Hollow.FollowTarget.Method == "Teleport" and not followWasActive then
+        SavedPositionBeforeFollow = hrp.CFrame
+        followWasActive = true
+        hrp.CFrame = CFrame.new(tRoot.Position)
+    end
+
+    local mode = Hollow.FollowTarget.Mode
+    local offset
+
+    if mode == "Random" then
+        local radius = math.random(2, math.max(2, Hollow.FollowTarget.Radius))
+        local height = math.random(0, math.max(0, Hollow.FollowTarget.Height))
+        local angle = math.random() * math.pi * 2
+        offset = Vector3.new(math.cos(angle) * radius, height, math.sin(angle) * radius)
+
+    elseif mode == "Experimental" then
+        local radius = math.random(2, math.max(2, Hollow.FollowTarget.Radius))
+        local height = math.random(0, math.max(0, Hollow.FollowTarget.Height))
+        offset = Vector3.new(math.random(-radius, radius), height, math.random(-radius, radius))
+
+    else -- Strafe
+        local angle = tick() * Hollow.FollowTarget.Speed
+        offset = Vector3.new(
+            math.cos(angle) * Hollow.FollowTarget.Radius,
+            Hollow.FollowTarget.Height,
+            math.sin(angle) * Hollow.FollowTarget.Radius
+        )
+        local newPos = tRoot.Position + offset
+        if Hollow.FollowTarget.Method == "Teleport" then
+            hrp.CFrame = CFrame.new(newPos)
+        else
+            desynccframe(CFrame.new(newPos))
+        end
+        return
+    end
+
+    local newPos = tRoot.Position + offset
+    if Hollow.FollowTarget.Method == "Teleport" then
+        hrp.CFrame = CFrame.new(newPos)
+    else
+        desynccframe(CFrame.new(newPos))
+    end
+end)
+
+-- =========================================
+-- < Bullet Tracer >
+-- =========================================
+
+local bullethookdh
+bullethookdh = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local args = {...}
+    if getnamecallmethod() == "FireServer" and self.Name == "MainEvent" and args[1] == "ShootGun" then
+        task.spawn(function() Create_Tracer(args[3], args[4]) end)
+    end
+    return bullethookdh(self, unpack(args))
+end))
+
+local bullethookhc
+bullethookhc = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+    local args = {...}
+    if getnamecallmethod() == "FireServer" and self.Name == "MainEvent" and args[1] == "Shoot" then
+        task.spawn(function() Create_Tracer(args[2][3], args[2][1][1].Position) end)
+    end
+    return bullethookhc(self, unpack(args))
+end))
+
+-- =========================================
+-- < Misc >
+-- =========================================
+
+-- Auto reload
+RS.Heartbeat:Connect(function()
+    if not Hollow.Misc.AutoReload then return end
+    local char = localplayer.Character
+    if not char then return end
+    local tool = char:FindFirstChildOfClass("Tool")
+
+    if tool and tool:FindFirstChild("Ammo", true) then
+        if tool:FindFirstChild("Ammo", true).Value == 0 then
+            if GetGame() == "Da Hood" then 
+                ReplicatedStorage.MainEvent:FireServer("Reload", tool)
+            else
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
+            end
+            
+        end
+    end
+end)
+
+-- Auto stomp
+RS.Heartbeat:Connect(function()
+    if not Hollow.Misc.AutoStomp then return end
+    ReplicatedStorage.MainEvent:FireServer("Stomp")
+end)
+
+-- =========================================
+-- < Movement >
+-- =========================================
+
+-- CFrame fly
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Hollow.Movement.CFrameflykeybind and Hollow.Movement.CFrameflyenabled then
+        flyActive = not flyActive
+    end
+end)
+
+RS.Heartbeat:Connect(function(dt)
+    if not flyActive or not Hollow.Movement.CFrameflyenabled then return end
+    local character = localplayer.Character
+    if not character then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local hum = character:FindFirstChild("Humanoid")
+    if not hrp or not hum then return end
+    local cameraCFrame = Camera.CFrame
+    local moveDirection = Vector3.new(0, 0, 0)
+    if UIS:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + cameraCFrame.LookVector end
+    if UIS:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - cameraCFrame.LookVector end
+    if UIS:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - cameraCFrame.RightVector end
+    if UIS:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + cameraCFrame.RightVector end
+    if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + Vector3.new(0, 1, 0) end
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit
+        hrp.CFrame = hrp.CFrame + (moveDirection * dt) * Hollow.Movement.CFrameflyvalue * 100
+    end
+    hrp.Velocity = (hrp.Velocity * Vector3.new(1, 0, 1)) + Vector3.new(0, 1.9, 0)
+end)
+
+----------------------------- End of source
+
+-- =========================================
+-- < UI Library >
+-- =========================================
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/24ktokyo02ndbackup-byte/v2/refs/heads/main/UI"))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+local Window = Library:CreateWindow({
+    Title = 'Hollow',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    Size = UDim2.fromOffset(550, 650),
+    MenuFadeTime = 0.125
+})
+
+-- =========================================
+-- < Pages >
+-- =========================================
+Main    = Window:AddTab('Main')
+Legit   = Window:AddTab("Legit")
+Self    = Window:AddTab('Self')
+Visuals = Window:AddTab('Visuals')
+Menu    = Window:AddTab('UI Settings')
+
+-- =========================================
+-- < Main Tab >
+-- =========================================
+local MainSection = Main:AddLeftTabbox('Rage')
+local RagebotTab  = MainSection:AddTab('Ragebot')
+local ForcehitTab = MainSection:AddTab('Forcehit')
+
+RagebotTab:AddToggle('Enabled', {
+    Text = 'Enabled',
+    Default = Hollow.Ragebot.Enabled,
+    Callback = function(Value) Hollow.Ragebot.Enabled = Value end
+}):AddKeyPicker('KeyPicker', {
+    Default = 'Q', 
+    SyncToggleState = false,
+    Mode = 'Always',
+    Text = 'Ragebot keybind', 
+    NoUI = false, 
+    ChangedCallback = function(New) Hollow.Ragebot.Keybind = New end
+})
+RagebotTab:AddDropdown('RagebotHitpart', {
+    Values = { 'Head', "HumanoidRootPart" },
+    Default = 1, 
+    Multi = false, 
+    Text = 'Hit part',
+    Callback = function(Value) Hollow.Ragebot.HitPart = Value end
+})
+RagebotTab:AddToggle('RagebotLookAt', {
+    Text = 'Look at',
+    Default = Hollow.Ragebot.LookAt,
+    Callback = function(Value) Hollow.Ragebot.LookAt = Value end
+})
+RagebotTab:AddToggle('RagebotAutofire', {
+    Text = 'Auto fire',
+    Default = Hollow.Ragebot.Autofire,
+    Callback = function(Value) Hollow.Ragebot.Autofire = Value end
+})
+RagebotTab:AddSlider('RagebotAutofireDelay', {
+    Text = 'Auto fire Delay',
+    Default = Hollow.Ragebot.AutofireDelay,
+    Min = 0,
+    Max = 1,
+    Rounding = 2,
+    Compact = false,
+    Callback = function(Value) Hollow.Ragebot.AutofireDelay = Value end
+})
+RagebotTab:AddToggle('RagebotAutoEquipEnabled', {
+    Text = 'Auto equip',
+    Default = Hollow.Ragebot.AutoEquipEnabled,
+    Tooltip = "Requires autofire",
+    Callback = function(Value) Hollow.Ragebot.AutoEquipEnabled = Value end
+})
+RagebotTab:AddDropdown('RagebotAutoEquip', {
+    Values = { 'Aug', "Lmg", "Double-Barrel", "Revolver", "Flintlock", "Rifle" },
+    Default = 1,
+    Multi = true,
+    Text = 'Guns',
+    Callback = function(Value) Hollow.Ragebot.AutoEquip = Value end
+})
+RagebotTab:AddToggle('RagebotLockOnShooter', {
+    Text = 'Auto lock on shooter',
+    Default = Hollow.Ragebot.LockonShooter,
+    Callback = function(Value) Hollow.Ragebot.LockonShooter = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+ForcehitTab:AddToggle('ForcehitEnabled', {
+    Text = 'Enabled',
+    Default = Hollow.Forcehit.Enabled,
+    Tooltip = 'Da hood and Hood customs ONLY',
+    Callback = function(Value) Hollow.Forcehit.Enabled = Value end
+}):AddKeyPicker('ForcehitKeyPicker', {
+    Default = 'Q', 
+    SyncToggleState = false,
+    Mode = 'Always',
+    Text = 'Forcehit keybind', 
+    NoUI = false, 
+    ChangedCallback = function(New) Hollow.Forcehit.Keybind = New end
+})
+ForcehitTab:AddToggle('ForcehitLookAt', {
+    Text = 'Look at',
+    Default = Hollow.Forcehit.LookAt,
+    Callback = function(Value) Hollow.Forcehit.LookAt = Value end
+})
+ForcehitTab:AddToggle('ForcehitAutoEquipEnabled', {
+    Text = 'Auto equip',
+    Default = Hollow.Forcehit.AutoEquipEnabled,
+    Callback = function(Value) Hollow.Forcehit.AutoEquipEnabled = Value end
+})
+ForcehitTab:AddDropdown('ForcehitAutoequip', {
+    Values = { 'Aug', "Lmg", "Double-Barrel", "Revolver", "Flintlock", "Rifle" },
+    Default = 1,
+    Multi = true,
+    Text = 'Guns',
+    Callback = function(Value) Hollow.Forcehit.AutoEquip = Value end
+})
+ForcehitTab:AddToggle('ForcehitLockOnShooter', {
+    Text = 'Auto lock on shooter',
+    Default = Hollow.Forcehit.LockonShooter,
+    Callback = function(Value) Hollow.Forcehit.LockonShooter = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local KillAura = Main:AddRightGroupbox('Kill Aura')
+
+--------------------------------------------------------------------------------------
+
+local TargetMonitoring = Main:AddRightGroupbox('Target Monitoring')
+TargetMonitoring:AddToggle('HitNotifications', {
+    Text = 'Hit Notifications',
+    Default = Hollow.TargetMonitoring.HitNotifications,
+    Callback = function(Value) Hollow.TargetMonitoring.HitNotifications = Value end
+})
+TargetMonitoring:AddToggle('HitSound', {
+    Text = 'Hit Sounds',
+    Default = Hollow.TargetMonitoring.HitSounds,
+    Callback = function(Value) Hollow.TargetMonitoring.HitSounds = Value end
+})
+TargetMonitoring:AddDropdown('HitSoundType', {
+    Values = { 'Neverlose', "Snipe", "Retro" },
+    Default = 1, 
+    Multi = false, 
+    Text = 'Hit Sound type',
+    Callback = function(Value) Hollow.TargetMonitoring.HitSoundType = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local MiscSection = Main:AddRightGroupbox('Misc')
+MiscSection:AddToggle('AutoReload', {
+    Text = 'Auto reload',
+    Default = Hollow.Misc.AutoReload,
+    Callback = function(Value) Hollow.Misc.AutoReload = Value end
+})
+MiscSection:AddToggle('AutoStomp', {
+    Text = 'Auto stomp',
+    Default = Hollow.Misc.AutoStomp,
+    Callback = function(Value) Hollow.Misc.AutoStomp = Value end
+})
+MiscSection:AddToggle('Rapidfire', {
+    Text = 'Rapid fire',
+    Default = Hollow.Misc.Rapidfire,
+    Callback = function(Value) Hollow.Misc.Rapidfire = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local TargetSection = Main:AddLeftGroupbox('Target')
+TargetSection:AddToggle('FollowTarget', {
+    Text = 'Follow Target',
+    Default = Hollow.FollowTarget.Enabled,
+    Callback = function(Value) 
+        Hollow.FollowTarget.Enabled = Value
+        if Value then
+            followWasActive = false
+            SavedPositionBeforeFollow = nil
+        else
+            if Hollow.FollowTarget.Method == "Teleport" then
+                RestoreSavedPosition()
+            elseif Hollow.FollowTarget.Method == "Desync" then
+                desyncreset()
+            end
+        end
+    end
+})
+TargetSection:AddDropdown('FollowTargetMode', {
+    Values = { 'Strafe', "Random", "Experimental" },
+    Default = 1, 
+    Multi = false, 
+    Text = 'Mode',
+    Callback = function(Value) 
+        Hollow.FollowTarget.Mode = Value
+    end
+})
+TargetSection:AddDropdown('FollowTargetMethod', {
+    Values = { 'Teleport', 'Desync' },
+    Default = 1,
+    Multi = false,
+    Text = 'Method',
+    Callback = function(Value)
+        if Hollow.FollowTarget.Method == "Desync" and Value ~= "Desync" then
+            desyncreset()
+        end
+        Hollow.FollowTarget.Method = Value
+    end
+})
+TargetSection:AddSlider('FollowSpeed', {
+    Text = 'Speed',
+    Default = Hollow.FollowTarget.Speed,
+    Min = 1,
+    Max = 150,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value) Hollow.FollowTarget.Speed = Value end
+})
+TargetSection:AddSlider('FollowRadius', {
+    Text = 'Radius',
+    Default = Hollow.FollowTarget.Radius,
+    Min = 1,
+    Max = 25,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value) Hollow.FollowTarget.Radius = Value end
+})
+TargetSection:AddSlider('FollowHeight', {
+    Text = 'Height',
+    Default = Hollow.FollowTarget.Height,
+    Min = 1,
+    Max = 25,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value) Hollow.FollowTarget.Height = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local TargetVisualsSection = Main:AddLeftGroupbox('Target Visuals')
+TargetVisualsSection:AddToggle('Tracer', {
+    Text = 'Tracer',
+    Default = Hollow.TargetVisuals.Tracer,
+    Callback = function(Value) Hollow.TargetVisuals.Tracer = Value end
+}):AddColorPicker('TracerColor', {
+    Default = Hollow.TargetVisuals.TracerColor,
+    Callback = function(Color) Hollow.TargetVisuals.TracerColor = Color end
+})
+
+--------------------------------------------------------------------------------------
+
+local ChecksSection = Main:AddRightGroupbox('Checks')
+ChecksSection:AddToggle('KOcheck', {
+    Text = 'KO check',
+    Default = Hollow.Checks.KOcheck,
+    Callback = function(Value) Hollow.Checks.KOcheck = Value end
+})
+ChecksSection:AddToggle('Wallcheck', {
+    Text = 'Wall check',
+    Default = Hollow.Checks.Wallcheck,
+    Callback = function(Value) Hollow.Checks.Wallcheck = Value end
+})
+ChecksSection:AddToggle('Forcefieldcheck', {
+    Text = 'Forcefield check',
+    Default = Hollow.Checks.ForceFieldcheck,
+    Callback = function(Value) Hollow.Checks.ForceFieldcheck = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local AimAssistSection = Legit:AddLeftGroupbox('Aim Assist')
+AimAssistSection:AddToggle('AimAssistEnabled', {
+    Text = 'Enabled',
+    Default = Hollow.AimAssist.Enabled,
+    Callback = function(Value) Hollow.AimAssist.Enabled = Value end
+}):AddKeyPicker('AimAssistKeybind', {
+    Default = 'Q',
+    SyncToggleState = false,
+    Mode = 'Always',
+    Text = 'Keybind',
+    NoUI = false,
+    ChangedCallback = function(New) Hollow.AimAssist.Keybind = New end
+})
+AimAssistSection:AddDropdown('AimAssistHitpart', {
+    Values = { 'Head', 'HumanoidRootPart' },
+    Default = 1,
+    Multi = false,
+    Text = 'Hit part',
+    Callback = function(Value) Hollow.AimAssist.Hitpart = Value end
+})
+AimAssistSection:AddSlider('AimAssistSmoothing', {
+    Text = 'Smoothing',
+    Default = Hollow.AimAssist.Smoothing,
+    Min = 1,
+    Max = 50,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value) Hollow.AimAssist.Smoothing = Value end
+})
+AimAssistSection:AddSlider('AimAssistPrediction', {
+    Text = 'Prediction',
+    Default = Hollow.AimAssist.Prediction,
+    Min = 0,
+    Max = 0.2,
+    Rounding = 2,
+    Compact = false,
+    Callback = function(Value) Hollow.AimAssist.Prediction = Value end
+})
+
+local BulletRedirectionSection = Legit:AddRightGroupbox('Bullet Redirection')
+
+--------------------------------------------------------------------------------------
+-- =========================================
+-- < Self Tab >
+-- =========================================
+local SelfSection   = Self:AddLeftTabbox('Movement')
+CFrameflyTab        = SelfSection:AddTab('CFrame fly')
+CFrameSpeedTab      = SelfSection:AddTab('CFrame speed')
+
+CFrameflyTab:AddToggle('CFrameFlyEnabled', {
+    Text = 'Enabled',
+    Default = Hollow.Movement.CFrameflyenabled,
+    Callback = function(Value) Hollow.Movement.CFrameflyenabled = Value end
+}):AddKeyPicker('CFrameFlyKeyPicker', {
+    Default = 'Z', 
+    SyncToggleState = false,
+    Mode = 'Toggle',
+    Text = 'Fly keybind', 
+    NoUI = false, 
+    ChangedCallback = function(New) Hollow.Movement.CFrameflykeybind = New end
+})
+CFrameflyTab:AddSlider('CFrameFlySpeed', {
+    Text = 'Speed',
+    Default = Hollow.Movement.CFrameflyvalue,
+    Min = 1,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value) Hollow.Movement.CFrameflyvalue = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+CFrameSpeedTab:AddToggle('CFrameSpeedEnabled', {
+    Text = 'Enabled',
+    Default = Hollow.Movement.CFramespeedenabled,
+    Callback = function(Value) Hollow.Movement.CFrameSpeedEnabled = Value end
+}):AddKeyPicker('CFrameSpeedKeyPicker', {
+    Default = 'X', 
+    SyncToggleState = false,
+    Mode = 'Toggle',
+    Text = 'Speed keybind', 
+    NoUI = false, 
+    ChangedCallback = function(New) Hollow.Movement.CFrameSpeedKeybind = New end
+})
+CFrameSpeedTab:AddSlider('CFrameSpeedValue', {
+    Text = 'Speed',
+    Default = Hollow.Movement.CFramespeedvalue,
+    Min = 1,
+    Max = 10,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value) Hollow.Movement.CFrameSpeedValue = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local DesyncSection = Self:AddRightGroupbox('Desync')
+DesyncSection:AddToggle('DesyncVisualizer', {
+    Text = 'Desync Visualizer',
+    Default = Hollow.Desync.Visualizer,
+    Callback = function(Value) Hollow.Desync.Visualizer = Value end
+})
+DesyncSection:AddDropdown('DesyncMode', {
+    Values = { 'Clone', "Beam" },
+    Default = 1, 
+    Multi = false, 
+    Text = 'Visualizer mode',
+    Callback = function(Value) Hollow.Desync.Mode = Value end
+})
+DesyncSection:AddDropdown('DesyncBeamOrigin', {
+    Values = { 'Mouse', "Character" },
+    Default = 1, 
+    Multi = false, 
+    Text = 'Beam origin',
+    Callback = function(Value) Hollow.Desync.BeamOrigin = Value end
+})
+DesyncSection:AddLabel('Beam color'):AddColorPicker('DesyncBeamColor', {
+    Default = Hollow.Desync.BeamColor,
+    Title = 'Beam color',
+    Callback = function(Value) Hollow.Desync.BeamColor = Value end
+})
+DesyncSection:AddSlider('DesyncCloneTransparency', {
+    Text = 'Clone transparency',
+    Default = Hollow.Desync.CloneTransparency,
+    Min = 0,
+    Max = 1,
+    Rounding = 1,
+    Callback = function(Value) Hollow.Desync.CloneTransparency = Value end
+})
+DesyncSection:AddDropdown('DesyncCloneMaterial', {
+    Values = { 'ForceField', 'Neon', 'Glass', 'SmoothPlastic', 'DiamondPlate', 'Marble', 'Granite' },
+    Default = 1,
+    Multi = false,
+    Text = 'Clone material',
+    Callback = function(Value)
+        local materials = {
+            ForceField   = Enum.Material.ForceField,
+            Neon         = Enum.Material.Neon,
+            Glass        = Enum.Material.Glass,
+            SmoothPlastic= Enum.Material.SmoothPlastic,
+            DiamondPlate = Enum.Material.DiamondPlate,
+            Marble       = Enum.Material.Marble,
+            Granite      = Enum.Material.Granite,
+        }
+        Hollow.Desync.CloneMaterial = materials[Value]
+    end
+})
+DesyncSection:AddLabel('Clone color'):AddColorPicker('DesyncCloneColor', {
+    Default = Hollow.Desync.CloneColor,
+    Title = 'Clone color',
+    Callback = function(Value) Hollow.Desync.CloneColor = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+local BulletTracerSection = Self:AddRightGroupbox('Bullet Tracers')
+BulletTracerSection:AddToggle('BulletTracers', {
+    Text = 'Enabled',
+    Default = Hollow.BulletTracers.Enabled,
+    Callback = function(Value) Hollow.BulletTracers.Enabled = Value end
+})
+BulletTracerSection:AddDropdown('BulletTracerMode', {
+    Values = { 'Laser', 'Line', 'Light', 'Flow' },
+    Default = 1,
+    Multi = false,
+    Text = 'Mode',
+    Callback = function(Value) Hollow.BulletTracers.Mode = Value end
+})
+BulletTracerSection:AddLabel('Color'):AddColorPicker('BulletTracerColor', {
+    Default = Hollow.BulletTracers.Color,
+    Callback = function(Value) Hollow.BulletTracers.Color = Value end
+})
+BulletTracerSection:AddSlider('BulletTracerTransparency', {
+    Text = 'Transparency',
+    Default = Hollow.BulletTracers.Transparency,
+    Min = 0,
+    Max = 1,
+    Rounding = 2,
+    Callback = function(Value) Hollow.BulletTracers.Transparency = Value end
+})
+BulletTracerSection:AddSlider('BulletTracerLifetime', {
+    Text = 'Lifetime',
+    Default = Hollow.BulletTracers.Lifetime,
+    Min = 0.1,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(Value) Hollow.BulletTracers.Lifetime = Value end
+})
+
+--------------------------------------------------------------------------------------
+
+-- =========================================
+-- < Menu Tab >
+-- =========================================
+local MenuSection = Menu:AddLeftGroupbox('Menu Settings')
+MenuSection:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'LeftAlt', NoUI = true, Text = 'Menu keybind' })
+Library.ToggleKeybind = Options.MenuKeybind 
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder('Hollow/Configs')
+SaveManager:BuildConfigSection(Menu)
+SaveManager:LoadAutoloadConfig()
+
+Library:Notify("Your Holes will get #DIDDLED")
